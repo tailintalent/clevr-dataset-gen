@@ -9,6 +9,7 @@ from __future__ import print_function
 import math, sys, random, argparse, json, os, tempfile
 from datetime import datetime as dt
 from collections import Counter
+from typing import List
 
 """
 Renders random scenes using Blender, each with with a random number of objects;
@@ -309,8 +310,12 @@ def render_scene(args,
   # Now make some random objects
   objects, blender_objects = add_random_objects(scene_struct, num_objects, args, camera)
 
+  # Generate masks (see https://github.com/kexinyi/ns-vqa/issues/4)
+  mask_colors = render_shadeless(blender_objects, path=output_image[:-4]+'_mask.png', return_ordered_objects=True)
+
   # Render the scene and dump the scene data structure
   scene_struct['objects'] = objects
+  scene_struct['mask_colors'] = mask_colors
   scene_struct['relationships'] = compute_all_relationships(scene_struct)
   while True:
     try:
@@ -498,12 +503,15 @@ def check_visibility(blender_objects, min_pixels_per_object):
   return True
 
 
-def render_shadeless(blender_objects, path='flat.png'):
+def render_shadeless(blender_objects, path='flat.png', return_ordered_objects: bool = False):
   """
   Render a version of the scene with shading disabled and unique materials
   assigned to all objects, and return a set of all colors that should be in the
   rendered image. The image itself is written to path. This is used to ensure
   that all objects will be visible in the final rendered scene.
+
+  :param return_ordered_objects: if true, returns a
+  *list* (not a set) of all objects in the scene.
   """
   render_args = bpy.context.scene.render
 
@@ -525,6 +533,7 @@ def render_shadeless(blender_objects, path='flat.png'):
 
   # Add random shadeless materials to all objects
   object_colors = set()
+  ordered_object_colors = []
   old_materials = []
   for i, obj in enumerate(blender_objects):
     old_materials.append(obj.data.materials[0])
@@ -535,6 +544,7 @@ def render_shadeless(blender_objects, path='flat.png'):
       r, g, b = [random.random() for _ in range(3)]
       if (r, g, b) not in object_colors: break
     object_colors.add((r, g, b))
+    ordered_object_colors.append((r, g, b))
     mat.diffuse_color = [r, g, b]
     mat.use_shadeless = True
     obj.data.materials[0] = mat
@@ -557,7 +567,10 @@ def render_shadeless(blender_objects, path='flat.png'):
   render_args.engine = old_engine
   render_args.use_antialiasing = old_use_antialiasing
 
-  return object_colors
+  if return_ordered_objects:
+    return ordered_object_colors
+  else:
+    return object_colors
 
 
 if __name__ == '__main__':
