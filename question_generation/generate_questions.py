@@ -68,6 +68,8 @@ parser.add_argument('--num_scenes', default=0, type=int,
     help="The number of images for which to generate questions. Setting to 0 " +
          "generates questions for all scenes in the input file starting from " +
          "--scene_start_idx")
+parser.add_argument('--max-num-objects', type=int, required=True,
+    help="The maximum number of objects in a scene. Should be the same as the parameter you used in image generation.")
 
 # Control the number of questions per image; we will attempt to generate
 # templates_per_image * instances_per_template questions per image.
@@ -570,6 +572,9 @@ def main(args):
       answers = metadata['types'][final_dtype]
       if final_dtype == 'Bool':
         answers = [True, False]
+      if final_dtype == 'Object':
+        if metadata['dataset'] == 'CLEVR-v1.0':
+          answers = list(range(0, args.max_num_objects))
       if final_dtype == 'Integer':
         if metadata['dataset'] == 'CLEVR-v1.0':
           answers = list(range(0, 11))
