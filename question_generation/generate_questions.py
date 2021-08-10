@@ -255,6 +255,7 @@ def instantiate_templates_dfs(scene_struct, template, metadata, answer_counts,
   states = [initial_state]
   final_states = []
   while states:
+    print(len(states))
     state = states.pop()
 
     # Check to make sure the current state is valid
