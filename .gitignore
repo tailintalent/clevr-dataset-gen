@@ -6,3 +6,4 @@ output/
 .env
 blender
 .vscode
+question_generation/babyarc/

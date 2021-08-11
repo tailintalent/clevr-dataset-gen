@@ -1,0 +1,193 @@
+// Language: jsonc
+[
+    // Two objects compared
+    {
+        "text": [
+            "What is the object with the %RELATION% as the <Z> <C> <M> <S>?"
+        ],
+        "nodes": [
+            {
+                "inputs": [],
+                "type": "scene"
+            },
+            {
+                "side_inputs": [
+                    "<Z>",
+                    "<C>",
+                    "<M>",
+                    "<S>"
+                ],
+                "inputs": [
+                    0
+                ],
+                "type": "filter_unique"
+            },
+            {
+                "inputs": [
+                    1
+                ],
+                "type": "%RELATION%"
+            },
+            {
+                "inputs": [
+                    2
+                ],
+                "type": "unique"
+            }
+        ],
+        "params": [
+            {
+                "type": "Size",
+                "name": "<Z>"
+            },
+            {
+                "type": "Color",
+                "name": "<C>"
+            },
+            {
+                "type": "Material",
+                "name": "<M>"
+            },
+            {
+                "type": "Shape",
+                "name": "<S>"
+            }
+        ],
+        "constraints": [
+            {
+                "params": [
+                    "%RELATION_TAG%"
+                ],
+                "type": "NULL"
+            }
+        ]
+    },
+    // Three objects compared
+    {
+        "text": [
+            "What is the object with the %RELATION% as the <Z> <C> <M> <S> and the %RELATION2% as the <Z2> <C2> <M2> <S2>?"
+        ],
+        "nodes": [
+            // Object 1: Z, C, M, S
+            // 0
+            {
+                "inputs": [],
+                "type": "scene"
+            },
+            // 1
+            {
+                "side_inputs": [
+                    "<Z>",
+                    "<C>",
+                    "<M>",
+                    "<S>"
+                ],
+                "inputs": [
+                    0
+                ],
+                "type": "filter_unique"
+            },
+            // 2
+            {
+                "inputs": [
+                    1
+                ],
+                "type": "%RELATION%"
+            },
+            // Object 2: Z2, C2, M2, S2
+            // 3
+            {
+                "inputs": [],
+                "type": "scene"
+            },
+            // 4
+            {
+                "side_inputs": [
+                    "<Z2>",
+                    "<C2>",
+                    "<M2>",
+                    "<S2>"
+                ],
+                "inputs": [
+                    3
+                ],
+                "type": "filter_unique"
+            },
+            // 5
+            {
+                "inputs": [
+                    4
+                ],
+                "type": "%RELATION2%"
+            },
+            // 6
+            {
+                "inputs": [
+                    2, 5
+                ],
+                "type": "intersect"
+            },
+            // 7
+            {
+                "inputs": [
+                    6
+                ],
+                "type": "unique"
+            }
+        ],
+        "params": [
+            {
+                "type": "Size",
+                "name": "<Z>"
+            },
+            {
+                "type": "Color",
+                "name": "<C>"
+            },
+            {
+                "type": "Material",
+                "name": "<M>"
+            },
+            {
+                "type": "Shape",
+                "name": "<S>"
+            },
+            {
+                "type": "Size",
+                "name": "<Z2>"
+            },
+            {
+                "type": "Color",
+                "name": "<C2>"
+            },
+            {
+                "type": "Material",
+                "name": "<M2>"
+            },
+            {
+                "type": "Shape",
+                "name": "<S2>"
+            }
+        ],
+        "constraints": [
+            {
+                "params": [
+                    "%RELATION_TAG%"
+                ],
+                "type": "NULL"
+            },
+            {
+                "params": [
+                    "%RELATION_TAG2%"
+                ],
+                "type": "NULL"
+            },
+            {
+                "params": [
+                    1, 4
+                ],
+                "type": "OUT_NEQ"
+            }
+        ]
+    }
+]
