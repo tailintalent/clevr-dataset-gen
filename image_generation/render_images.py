@@ -317,12 +317,26 @@ def render_scene(args,
   scene_struct['objects'] = objects
   scene_struct['mask_colors'] = mask_colors
   scene_struct['relationships'] = compute_all_relationships(scene_struct)
-  while True:
-    try:
-      bpy.ops.render.render(write_still=True)
-      break
-    except Exception as e:
-      print(e)
+
+  utils.render()
+
+  # Render each object individually
+  for idx, obj in enumerate(blender_objects):
+    other_objects = [o for o in blender_objects if o != obj]
+    # Delete all the other objects from the scene
+    for o in other_objects:
+      bpy.context.scene.objects.active = o
+      bpy.context.object.hide_render = True
+    
+    # Render the object alone
+    bpy.context.scene.render.filepath = output_image[:-4] + "_" + str(idx) + ".png"
+    utils.render()
+
+    # Readd the objects
+    for o in blender_objects:
+      bpy.context.scene.objects.active = o
+      bpy.context.object.hide_render = False
+
 
   with open(output_scene, 'w') as f:
     json.dump(scene_struct, f, indent=2)

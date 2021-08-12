@@ -170,3 +170,15 @@ def add_material(name, **properties):
       output_node.inputs['Surface'],
   )
 
+
+def render():
+  """
+  Renders the current blender scene.
+  """
+
+  while True:
+    try:
+      bpy.ops.render.render(write_still=True)
+      break
+    except Exception as e:
+      print(e)
