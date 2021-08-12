@@ -7,3 +7,4 @@ output/
 blender
 .vscode
 question_generation/babyarc/
+.ipynb_checkpoints
