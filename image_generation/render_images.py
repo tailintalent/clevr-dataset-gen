@@ -310,8 +310,8 @@ def render_scene(args,
   # Now make some random objects
   objects, blender_objects = add_random_objects(scene_struct, num_objects, args, camera)
 
-  # Generate masks (see https://github.com/kexinyi/ns-vqa/issues/4)
-  mask_colors = render_shadeless(blender_objects, path=output_image[:-4]+'_mask.png', return_ordered_objects=True)
+  # Generate masks all in one image, with overlaps (see https://github.com/kexinyi/ns-vqa/issues/4)
+  mask_colors = render_shadeless(blender_objects, path=output_image[:-4]+'_mask_aio.png', return_ordered_objects=True)
 
   # Render the scene and dump the scene data structure
   scene_struct['objects'] = objects
@@ -331,6 +331,9 @@ def render_scene(args,
     # Render the object alone
     bpy.context.scene.render.filepath = output_image[:-4] + "_" + str(idx) + ".png"
     utils.render()
+
+    # Generate a mask image for this object
+    render_shadeless(blender_objects, path=output_image[:-4]+'_mask_%d.png' % idx)
 
     # Readd the objects
     for o in blender_objects:
