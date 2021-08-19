@@ -5,6 +5,7 @@ import re
 import os
 import pickle
 import gzip
+from copy import copy
 
 from tqdm import tqdm
 from torchvision import transforms
@@ -62,84 +63,106 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
     
     image_cache = dict()
     
-    def load_image(self, filename: str):
+    def load_image(self, filename: str) -> torch.Tensor:
         if filename not in self.image_cache:
             self.image_cache[filename] = self.transform(Image.open(filename))
         return self.image_cache[filename]
 
-    def __init__(self, image_dir: str = None, question_dir: str = None, pickle_file: str = None):
+    def __init__(self,
+                 image_dir: str = None,
+                 question_dir: str = None,
+                 file: str = None,
+                 output_type: str = "full-color",
+                 stop_at: int = None):
         """
         Initializes the dataset. Pass in either image_dir and question_dir 
         (from which tasks will be synthesized) or pass in the path to a
-        pickle_file previously saved by pickle().
-        """
+        file previously saved by save().
+
+        Args:
+            output_type: what type of output to give as the output image. If
+            full-color, the target will be a full-color rendition of the
+            selected object [3x320x240]. If mask only, it will be a mask only
+            [1x320x240].
+            stop_at: idx of question to stop at. Useful if you don't want to load
+            the whole dataset (which may take a long time)
         
-        if pickle_file is not None:
-            with gzip.GzipFile(pickle_file, 'r') as f:
-                self.tasks = pickle.load(f)
+        Documentation on the data format in images/:
+
+        - CLEVR_new_000000.png: the input image
+        - CLEVR_new_000000_#.png: full color renders of individual objects
+        - CLEVR_new_000000_mask_#.png: masks of individual objects. The
+          background is RGB color #404040, while the foreground is some color
+          that isn't #404040.
+        - CLEVR_new_000000_mask_aio.png: masks of all objects, with occlusion
+        """
+
+        assert output_type == "full-color" or output_type == "mask-only"
+        
+        if file is not None:
+            self.tasks = torch.load(file)
         else:
             image_dir, question_dir = Path(image_dir), Path(question_dir)
             questions = json.loads((question_dir / "questions.json").read_text())
 
             tasks = dict()
 
-            image_cache = dict()
-            
             # Assemble the questions into tasks
             for idx, question in enumerate(tqdm(questions["questions"])):
-                template_filename = question["template_filename"]
-                question_family_index = question["question_family_index"]
                 program = question["program"]
                 input_filename = image_dir / question["image_filename"]
-                mask_filenames = list(sorted(reglob(str(image_dir), f"{question['image']}_[0-9]+.png")))
                 task_str = self.get_unique_task_string(program)
 
                 if task_str in tasks and input_filename in tasks[task_str]["images"]:
                     # Skip, since we have already seen this input image (for diversity!)
                     continue
+                
+                if task_str in tasks and tasks[task_str]["count"] >= self.MIN_EXAMPLES_REQUIRED:
+                    # Add examples until reaching MIN_EXAMPLES_REQUIRED
+                    continue
+
+                # Answer idx is the index of a selected object in the image
+                answer_object_idx = question["answer"]
+                assert type(answer_object_idx) == int
 
                 input = self.load_image(input_filename)
-                masks = [self.load_image(filename) for filename in mask_filenames]
-                refer_node_mask = masks[question["answer"]]
+                output_full_color = self.load_image(f"{image_dir}/{question['image']}_{answer_object_idx}.png")
+                output_mask_only = self.load_mask_image(f"{image_dir}/{question['image']}_mask_{answer_object_idx}.png")
 
                 if task_str not in tasks:
                     tasks[task_str] = {
                         "count": 0,
                         "inputs": [],
-                        "outputs": [],
+                        "outputs_full_color": [],
+                        "outputs_mask_only": [],
                         "task_str": task_str,
                         "questions": [],
                         "images": []
                     }
-
+                
                 tasks[task_str]["count"] += 1
                 tasks[task_str]["questions"].append(question)
                 tasks[task_str]["inputs"].append({
                     "image": input,
-                    "mask": masks,
                     "question": question
                 })
-                tasks[task_str]["outputs"].append(refer_node_mask)
+                tasks[task_str]["outputs_full_color"].append(output_full_color)
+                tasks[task_str]["outputs_mask_only"].append(output_mask_only)
                 tasks[task_str]["images"].append(input_filename)
                 
-                if idx % 100 == 0:
-                    print(len({k:v for k, v in tasks.items() if v["count"] >= self.MIN_EXAMPLES_REQUIRED}))
+                if stop_at is not None and idx > stop_at:
+                    break
 
-            # Only keep tasks with at least 5 items
+            # Only keep tasks with at least MIN_EXAMPLES items
             tasks = {k:v for k, v in tasks.items() if v["count"] >= self.MIN_EXAMPLES_REQUIRED}
             
-            # Make the last example a test input/output
-            for task in tasks:
-                task["test_input"] = task["inputs"].pop()
-                task["test_output"] = task["outputs"].pop()
-
             self.tasks = list(tasks.values())
         
+        self.output_type = output_type
         print("Loaded", len(self.tasks), "tasks.")
     
-    def pickle(self, filename: str):
-        with gzip.GzipFile(filename, 'w', compresslevel=1) as f:
-            pickle.dump(self.tasks, f)
+    def save(self, filename: str):
+        torch.save(self.tasks, filename)
     
     @staticmethod
     def get_unique_task_string(program: List[str]):
@@ -173,9 +196,27 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
         combined = zip(relations, inputs)
         return "+".join(sorted([relation + "-" + input for relation, input in combined]))
 
+    def load_mask_image(self, filename: str):
+        image = self.load_image(filename)
+        image = (image - 0x40/255) != 0 # Remove background and binarize
+        # Delete alpha layer and OR the RGB layers together
+        image = image[0:3].sum(axis=0, keepdims=True).to(torch.bool)
+        return image
 
     def __len__(self):
         return len(self.tasks)
 
     def __getitem__(self, idx):
-        return self.tasks[idx]
+        task = copy(self.tasks[idx])
+
+        # Handle output_type
+        if self.output_type == "full-color":
+            task["outputs"] = task["outputs_full_color"]
+        elif self.output_type == "mask-only":
+            task["outputs"] = task["outputs_mask_only"]
+
+        # Make the last example a test input/output
+        task["test_input"] = task["inputs"].pop()
+        task["test_output"] = task["outputs"].pop()
+
+        return task
