@@ -215,10 +215,16 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
         elif self.output_type == "mask-only":
             task["outputs"] = task["outputs_mask_only"]
 
+        # Delete variable-length lists in the dataset that break collating when
+        # batch_size > 1
+        del task["images"]
+        del task["questions"]
+        for inp in task["inputs"]:
+            del inp["question"]
+        
         # Make the last example a test input/output
         task["test_input"] = task["inputs"].pop()
         task["test_output"] = task["outputs"].pop()
 
-        del task["images"]
 
         return task
