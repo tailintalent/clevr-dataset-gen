@@ -5,7 +5,7 @@ import re
 import os
 import pickle
 import gzip
-from copy import copy
+from copy import deepcopy
 
 from tqdm import tqdm
 from torchvision import transforms
@@ -207,7 +207,7 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
         return len(self.tasks)
 
     def __getitem__(self, idx):
-        task = copy(self.tasks[idx])
+        task = deepcopy(self.tasks[idx])
 
         # Handle output_type
         if self.output_type == "full-color":
@@ -218,5 +218,7 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
         # Make the last example a test input/output
         task["test_input"] = task["inputs"].pop()
         task["test_output"] = task["outputs"].pop()
+
+        del task["images"]
 
         return task
