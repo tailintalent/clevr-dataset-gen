@@ -228,3 +228,20 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
 
 
         return task
+
+
+def create_full_dataset():
+    """
+    Loads the full dataset from disk and splits it into a train/val/test split, making up
+    2/3, 1/6, and 1/6 of the dataset, respectively.
+
+    Returns:
+        train_set, val_set, test_set - a tuple of torch.util.data.Datasets
+    """
+    dataset = ClevrRelationDataset(
+        file="/dfs/user/tailin/.results/CLEVR_relation/relations-dataset-2021-08-18-608-tasks.pt",
+        output_type="mask-only")
+    return torch.utils.data.random_split(
+        dataset,
+        [len(dataset) * 2//3, len(dataset) * 1//6, len(dataset) * 1//6 + 1],
+        generator=torch.Generator().manual_seed(42))
