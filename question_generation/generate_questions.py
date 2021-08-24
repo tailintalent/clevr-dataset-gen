@@ -275,7 +275,14 @@ def instantiate_templates_dfs(scene_struct, template, metadata, answer_counts,
         # Check to make sure constraints are satisfied for the current state
         skip_state = False
         for constraint in template['constraints']:
-            if constraint['type'] == 'NEQ':
+            if constraint['type'] == 'EQ':
+                p1, p2 = constraint["params"]
+                v1 = state['vals'].get(p1)
+
+                if v1 is not None and p2 is not None and v1 != p2:
+                    skip_state = True
+                    break
+            elif constraint['type'] == 'NEQ':
                 p1, p2 = constraint['params']
                 v1, v2 = state['vals'].get(p1), state['vals'].get(p2)
                 if v1 is not None and v2 is not None and v1 != v2:

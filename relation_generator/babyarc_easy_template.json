@@ -1,0 +1,56 @@
+[
+    {
+        "text": [
+            "What is the object with the %RELATION% as the <Z> <C> <M> <S>?"
+        ],
+        "nodes": [
+            {
+                "inputs": [],
+                "type": "scene"
+            },
+            {
+                "side_inputs": [
+                    "<Z>",
+                    "<C>",
+                    "<M>",
+                    "<S>"
+                ],
+                "inputs": [
+                    0
+                ],
+                "type": "filter_unique"
+            },
+            {
+                "inputs": [
+                    1
+                ],
+                "type": "%RELATION%"
+            },
+            {
+                "inputs": [
+                    2
+                ],
+                "type": "unique"
+            }
+        ],
+        "params": [
+            {
+                "type": "Size",
+                "name": "<Z>"
+            },
+            {
+                "type": "Color",
+                "name": "<C>"
+            },
+            {
+                "type": "Material",
+                "name": "<M>"
+            },
+            {
+                "type": "Shape",
+                "name": "<S>"
+            }
+        ],
+        "constraints": %CONSTRAINTS%
+    }
+]

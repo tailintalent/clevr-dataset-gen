@@ -12,3 +12,8 @@ Example questions:
 1. What object has the same shape as the X X X and the same color as the Y Y Y?
 2. What object has the [relation] as the [object] [and the [relation] as the [object]]?
 3. What objects have the ^^
+
+## Easy dataset
+
+1. What object has the same shape as the large blue cylinder?
+2. What object has the same color as the large blue cylinder?
