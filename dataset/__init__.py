@@ -210,10 +210,10 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
         task = deepcopy(self.tasks[idx])
 
         # Handle output_type
-        if self.output_type == "full-color":
-            task["outputs"] = task["outputs_full_color"]
-        elif self.output_type == "mask-only":
-            task["outputs"] = task["outputs_mask_only"]
+        if not self.output_type == "full-color":
+            del task["outputs_full_color"] # To save space
+        
+        task["outputs"] = task["outputs_mask_only"]
 
         # Delete variable-length lists in the dataset that break collating when
         # batch_size > 1
@@ -230,7 +230,7 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
         return task
 
 
-def create_full_dataset():
+def create_full_dataset(output_type: str = "mask-only"):
     """
     Loads the full dataset from disk and splits it into a train/val/test split, making up
     2/3, 1/6, and 1/6 of the dataset, respectively.
@@ -240,7 +240,7 @@ def create_full_dataset():
     """
     dataset = ClevrRelationDataset(
         file="/dfs/user/tailin/.results/CLEVR_relation/relations-dataset-2021-08-18-608-tasks.pt",
-        output_type="mask-only")
+        output_type=output_type)
     return torch.utils.data.random_split(
         dataset,
         [len(dataset) * 2//3, len(dataset) * 1//6, len(dataset) * 1//6 + 1],
