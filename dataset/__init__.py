@@ -73,6 +73,7 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
                  question_dir: str = None,
                  file: str = None,
                  output_type: str = "full-color",
+                 is_easy_dataset: bool = False,
                  stop_at: int = None):
         """
         Initializes the dataset. Pass in either image_dir and question_dir 
@@ -84,6 +85,9 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
             full-color, the target will be a full-color rendition of the
             selected object [3x320x240]. If mask only, it will be a mask only
             [1x320x240].
+            is_easy_dataset: marks whether this dataset is the "easy" version of CLEVR.
+            If so, this uses a special processing algorithm that splits each
+            task by 6 to generate more tasks than there are unique task ids.
             stop_at: idx of question to stop at. Useful if you don't want to load
             the whole dataset (which may take a long time)
         
@@ -117,8 +121,9 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
                     # Skip, since we have already seen this input image (for diversity!)
                     continue
                 
-                if task_str in tasks and tasks[task_str]["count"] >= self.MIN_EXAMPLES_REQUIRED:
-                    # Add examples until reaching MIN_EXAMPLES_REQUIRED
+                if not is_easy_dataset and task_str in tasks and tasks[task_str]["count"] >= self.MIN_EXAMPLES_REQUIRED:
+                    # Add examples until reaching MIN_EXAMPLES_REQUIRED, unless we are
+                    # using easy dataset and can reuse tasks
                     continue
 
                 # Answer idx is the index of a selected object in the image
@@ -157,6 +162,28 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
             tasks = {k:v for k, v in tasks.items() if v["count"] >= self.MIN_EXAMPLES_REQUIRED}
             
             self.tasks = list(tasks.values())
+
+            if is_easy_dataset:
+                # Extra processing to split tasks by increments of 6, to augment
+                # the dataset further
+                new_tasks = []
+                for task in self.tasks:
+                    for start_idx in range(0, task["count"], self.MIN_EXAMPLES_REQUIRED):
+                        end_idx = start_idx + self.MIN_EXAMPLES_REQUIRED
+                        if end_idx >= task["count"]:
+                            break
+
+                        new_tasks.append({
+                            "count": self.MIN_EXAMPLES_REQUIRED,
+                            "inputs": task["inputs"][start_idx:end_idx],
+                            "outputs_full_color": task["outputs_full_color"][start_idx:end_idx],
+                            "outputs_mask_only": task["outputs_mask_only"][start_idx:end_idx],
+                            "task_str": task["task_str"],
+                            "questions": task["questions"][start_idx:end_idx],
+                            "images": task["images"][start_idx:end_idx],
+                        })
+                print("Dataset extra processing concluded.")
+                self.tasks = new_tasks
         
         self.output_type = output_type
         print("Loaded", len(self.tasks), "tasks.")
@@ -226,7 +253,6 @@ class ClevrRelationDataset(torch.utils.data.Dataset):
         task["test_input"] = task["inputs"].pop()
         task["test_output"] = task["outputs"].pop()
 
-
         return task
 
 
@@ -245,3 +271,14 @@ def create_full_dataset(output_type: str = "mask-only"):
         dataset,
         [len(dataset) * 2//3, len(dataset) * 1//6, len(dataset) * 1//6 + 1],
         generator=torch.Generator().manual_seed(42))
+
+
+def create_easy_dataset(output_type: str = "mask-only"):
+    dataset = ClevrRelationDataset(
+        file="/dfs/user/tailin/.results/CLEVR_relation/relations-dataset-easy-2021-09-16-461-tasks2.pt",
+        output_type=output_type, is_easy_dataset=True)
+    return torch.utils.data.random_split(
+        dataset,
+        [len(dataset) * 2//3, len(dataset) * 1//6, len(dataset) * 1//6 + 2],
+        generator=torch.Generator().manual_seed(42))
+    
