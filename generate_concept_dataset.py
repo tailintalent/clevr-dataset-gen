@@ -86,6 +86,7 @@ def get_image_and_mask(
 def get_clevr_concept_data_core(filter_dict, dirname, resize=(60,60), n_examples=None, image_filenames=None, isplot=False):
     assert len(filter_dict) == 1
     concept = first_item(filter_dict)
+    concept = concept[0].upper() + concept[1:]
     json_filenames = sorted(filter_filename(dirname + "scenes"))
     chosen_filenames = []
     data_list = []
