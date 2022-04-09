@@ -53,6 +53,8 @@ def get_image_and_mask(
     isplot=False,
     check_square_oob="None",
 ):
+    if not isinstance(obj_id, list) and not isinstance(obj_id, tuple):
+        obj_id = [obj_id]
     img = get_image(dirname, chosen_filename+".png", resize=resize, is_square=is_square, antialias=True)
     if isplot:
         visualize_matrices([img], use_color_dict=False)
@@ -77,12 +79,25 @@ def get_image_and_mask(
             mask_list.append(mask)
 
     if is_valid:
-        mask = mask_list[obj_id]
+        masks = [mask_list[id] for id in obj_id]
         if isplot:
-            plot_matrices(mask, images_per_row=6)
+            plot_matrices([ele[0] for ele in masks], images_per_row=6)
     else:
-        img, mask, mask_list = None, None, None
-    return img, mask, mask_list
+        img, masks, mask_list = None, None, None
+    return img, masks, mask_list
+
+
+def get_all_relations(objects):
+    Dict = {"SameColor": "color", "SameShape": "shape", "SameSize": "size"}
+    relations = []
+    for i, obj1 in enumerate(objects):
+        for j, obj2 in enumerate(objects):
+            if i < j:
+                for relation in ["SameColor", "SameShape", "SameSize"]:
+                    key = Dict[relation]
+                    if obj1[key] == obj2[key]:
+                        relations.append((i, j, relation))
+    return relations
 
 
 def get_clevr_concept_data_core(filter_dict, dirname, resize=(60,60), n_examples=None, image_filenames=None, isplot=False):
@@ -151,6 +166,72 @@ def get_clevr_concept_data_core(filter_dict, dirname, resize=(60,60), n_examples
     return data_list
 
 
+def get_clevr_relation_data_core(relation, dirname, resize=(64,64), n_examples=None, image_filenames=None, isplot=False):
+    json_filenames = sorted(filter_filename(dirname + "scenes"))
+    chosen_filenames = []
+    data_list = []
+    Dict = {"SameColor": "color", "SameShape": "shape", "SameSize": "size"}
+    for k, json_filename in enumerate(json_filenames):
+        meta = json.load(open(dirname + "scenes/" + json_filename))
+        objects = meta["objects"]
+        pairs = []
+        for i, obj1 in enumerate(objects):
+            for j, obj2 in enumerate(objects):
+                if i < j:
+                    key = Dict[relation]
+                    if obj1[key] == obj2[key]:
+                        pairs.append((i, j))
+        if len(pairs) > 0:
+            if isplot:
+                print(f"{k}:")
+            chosen_filename = json_filename.split(".json")[0]
+            obj_ids = pairs[np.random.choice(len(pairs))]
+            img, masks, mask_list = get_image_and_mask(
+                chosen_filename,
+                obj_ids, 
+                n_objs=len(objects),
+                dirname=dirname,
+                image_filenames=image_filenames,
+                resize=resize,
+                check_square_oob="all",
+                isplot=isplot,
+            )
+            if masks is None:
+                continue
+            chosen_filenames.append((chosen_filename, obj_ids))
+            obj_spec = get_obj_spec(objects)
+            node_id_map = OrderedDict({
+                f"obj_{i}": i for i in range(len(mask_list))
+            })
+            id_object_mask = OrderedDict({i: mask_ele for i, mask_ele in enumerate(mask_list)})
+            relations = get_all_relations(objects)
+            info = Dictionary({
+                "dirname": dirname,
+                "chosen_filename": chosen_filename,
+                "obj_id": obj_ids,
+                "meta": meta,
+                "obj_spec": obj_spec,
+                "node_id_map": node_id_map,
+                "id_object_mask": id_object_mask,
+                "relations": relations,
+            })
+            if isplot:
+                print(obj_spec)
+                plot_matrices([ele[0] for ele in mask_list], images_per_row=6)
+            data = (
+                img,
+                tuple(masks),
+                relation,
+                info,
+            )
+            data_list.append(data)
+            if len(data_list) % 100 == 0 or len(data_list) == n_examples:
+                print(len(data_list))
+        if n_examples is not None and len(data_list) >= n_examples:
+            break
+    return data_list
+
+
 def get_clevr_concept_data(mode, canvas_size=(64,64), n_examples=None, dirname=None):
     if isinstance(canvas_size, Number):
         canvas_size = (canvas_size, canvas_size)
@@ -165,6 +246,31 @@ def get_clevr_concept_data(mode, canvas_size=(64,64), n_examples=None, dirname=N
         filter_dict = {MAP_DICT[mode_ele][0]: MAP_DICT[mode_ele][1]}
         data_list = get_clevr_concept_data_core(
             filter_dict,
+            dirname,
+            resize=canvas_size,
+            n_examples=n_examples_ele,
+            image_filenames=image_filenames,
+            isplot=False,
+        )
+        data_list_all += data_list
+    data_list_all = data_list_all[:n_examples]
+    random.shuffle(data_list_all)
+    return data_list_all
+
+
+def get_clevr_relation_data(mode, canvas_size=(64,64), n_examples=None, dirname=None):
+    if isinstance(canvas_size, Number):
+        canvas_size = (canvas_size, canvas_size)
+    modes = mode.split("+")
+    n_examples_ele = int(np.ceil(n_examples / len(modes)))
+    data_list_all = []
+    if dirname is None:
+        dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-0-60000/"
+    image_filenames = sorted(filter_filename(dirname + "images"))
+    for relation in modes:
+        print(f"mode: {relation}:")
+        data_list = get_clevr_relation_data_core(
+            relation,
             dirname,
             resize=canvas_size,
             n_examples=n_examples_ele,
@@ -220,6 +326,60 @@ MAP_DICT = {
 # n_examples=100
 # image_filenames = sorted(filter_filename(dirname + "images"))
 # isplot=True
+
+
+# ### Relation:
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    mode = "SameColor+SameShape+SameSize"
+    dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-0-60000/"
+    data_list = get_clevr_relation_data(mode, canvas_size=(64,64), n_examples=25000, dirname=dirname)
+    pdump(data_list, "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-saved/" + f"data_list_canvas_relation_{64}_ex_{25000}_1.p")
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    mode = "SameColor+SameShape+SameSize"
+    dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-60000-130000/"
+    data_list = get_clevr_relation_data(mode, canvas_size=(64,64), n_examples=30000, dirname=dirname)
+    pdump(data_list, "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-saved/" + f"data_list_canvas_relation_{64}_ex_{30000}_2.p")
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    mode = "SameColor+SameShape+SameSize"
+    dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-130000-150000/"
+    data_list = get_clevr_relation_data(mode, canvas_size=(64,64), n_examples=11000, dirname=dirname)
+    pdump(data_list, "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-saved/" + f"data_list_canvas_relation_{64}_ex_{11000}_3.p")
+
+
+# ### Concept:
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    mode = "SameColor+SameShape+SameSize"
+    dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-0-60000/"
+    data_list = get_clevr_relation_data(mode, canvas_size=(64,64), n_examples=440, dirname=dirname)
+    pdump(data_list, "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-saved/" + f"data_list_canvas_relation_{64}_ex_{440}.p")
+
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    mode = "SameColor+SameShape+SameSize"
+    dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-0-60000/"
+    data_list = get_clevr_concept_data(mode, canvas_size=(64,64), n_examples=25000, dirname=dirname)
+    pdump(data_list, "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-saved/" + f"data_list_canvas_{64}_ex_{25000}_1.p")
 
 
 # In[ ]:
