@@ -123,7 +123,7 @@ def get_clevr_concept_data_core(filter_dict, dirname, resize=(60,60), n_examples
                 print(f"{k}:")
             chosen_filename = json_filename.split(".json")[0]
             obj_id = np.random.choice(objs_valid_list)
-            img, mask, mask_list = get_image_and_mask(
+            img, masks, mask_list = get_image_and_mask(
                 chosen_filename, obj_id, 
                 n_objs=len(objects),
                 dirname=dirname,
@@ -132,7 +132,7 @@ def get_clevr_concept_data_core(filter_dict, dirname, resize=(60,60), n_examples
                 check_square_oob="all",
                 isplot=isplot,
             )
-            if mask is None:
+            if masks is None:
                 continue
             chosen_filenames.append((chosen_filename, obj_id))
             obj_spec = get_obj_spec(objects)
@@ -154,7 +154,7 @@ def get_clevr_concept_data_core(filter_dict, dirname, resize=(60,60), n_examples
                 plot_matrices([ele[0] for ele in mask_list], images_per_row=6)
             data = (
                 img,
-                (mask,),
+                tuple(masks),
                 concept,
                 info,
             )
@@ -232,7 +232,7 @@ def get_clevr_relation_data_core(relation, dirname, resize=(64,64), n_examples=N
     return data_list
 
 
-def get_clevr_concept_data(mode, canvas_size=(64,64), n_examples=None, dirname=None):
+def get_clevr_concept_data(mode, canvas_size=(64,64), n_examples=None, dirname=None, isplot=False):
     if isinstance(canvas_size, Number):
         canvas_size = (canvas_size, canvas_size)
     modes = mode.split("+")
@@ -250,7 +250,7 @@ def get_clevr_concept_data(mode, canvas_size=(64,64), n_examples=None, dirname=N
             resize=canvas_size,
             n_examples=n_examples_ele,
             image_filenames=image_filenames,
-            isplot=False,
+            isplot=isplot,
         )
         data_list_all += data_list
     data_list_all = data_list_all[:n_examples]
@@ -258,7 +258,7 @@ def get_clevr_concept_data(mode, canvas_size=(64,64), n_examples=None, dirname=N
     return data_list_all
 
 
-def get_clevr_relation_data(mode, canvas_size=(64,64), n_examples=None, dirname=None):
+def get_clevr_relation_data(mode, canvas_size=(64,64), n_examples=None, dirname=None, isplot=False):
     if isinstance(canvas_size, Number):
         canvas_size = (canvas_size, canvas_size)
     modes = mode.split("+")
@@ -275,7 +275,7 @@ def get_clevr_relation_data(mode, canvas_size=(64,64), n_examples=None, dirname=
             resize=canvas_size,
             n_examples=n_examples_ele,
             image_filenames=image_filenames,
-            isplot=False,
+            isplot=isplot,
         )
         data_list_all += data_list
     data_list_all = data_list_all[:n_examples]
@@ -329,6 +329,22 @@ MAP_DICT = {
 
 
 # ### Relation:
+
+# In[ ]:
+
+
+if __name__ == "__main__":
+    mode = "SameColor+SameShape+SameSize"
+    dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-0-60000/"
+    data_list = get_clevr_relation_data(mode, canvas_size=(32,32), n_examples=25000, dirname=dirname, isplot=True)
+    pdump(data_list, "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-saved/" + f"data_list_canvas_relation_{32}_ex_{25000}_1.p")
+
+
+# In[ ]:
+
+
+
+
 
 # In[ ]:
 
