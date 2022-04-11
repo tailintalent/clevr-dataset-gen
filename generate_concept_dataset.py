@@ -277,6 +277,7 @@ def get_multigraph_from_obj(objects):
             ]
     """
     RELATIONS = ["SameColor", "SameShape", "SameSize"]
+    Dict = {"SameColor": "color", "SameShape": "shape", "SameSize": "size"}
     graph = []
     for i, obj in enumerate(objects):
         features = (get_cap(obj["color"]), get_cap(obj["shape"]), get_cap(obj["size"]))
@@ -489,12 +490,12 @@ MAP_DICT = {
 # In[ ]:
 
 
-filter_dict = {"color": "red"}
-dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-0-60000/"
-resize=(60,60)
-n_examples=100
-image_filenames = sorted(filter_filename(dirname + "images"))
-isplot=True
+# filter_dict = {"color": "red"}
+# dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-0-60000/"
+# resize=(60,60)
+# n_examples=100
+# image_filenames = sorted(filter_filename(dirname + "images"))
+# isplot=True
 
 
 # ### Inference:
@@ -532,9 +533,9 @@ GRAPH_DICT = {
 
 if __name__ == "__main__":
     mode = "Graph1+Graph2+Graph3"
-    dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-v2-mpi-130000-150000/"
+    dirname = "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-test-mpi-0-50000/"
     data_list = get_clevr_graph_data(mode, canvas_size=(64,64), n_examples=200, dirname=dirname)
-    pdump(data_list, "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-saved/" + f"data_list_canvas_graph_Graph1+Graph2+Graph3_{64}_ex_{200}_3.p")
+    pdump(data_list, "/dfs/user/tailin/.results/CLEVR_relation/clevr-concept-relation-saved/" + f"data_list_canvas_graph_Graph1+Graph2+Graph3_{64}_ex_{200}_4.p")
 
 
 # ### Relation:
